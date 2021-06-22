@@ -8,8 +8,8 @@ var BookSchema = Schema({
     year: Number,
     genre: String,
     pages: Number,
-    editorial: String,
-    nameAuthor: String
+    idEditorial: String,
+    idAuthor: String
 })
 
 module.exports = mongoose.model('Book', BookSchema)

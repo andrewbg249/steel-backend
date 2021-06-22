@@ -2,61 +2,74 @@
 
 var Book = require('../models/book')
 var Editorial = require('../models/editorial')
+var Author = require('../models/author')
 
 const { exists } = require('../models/book')
 
 // Función que permite validar si se carga correctamente el Book controller
-function test(req, res){
+function test(req, res) {
     res.status(200).send({ message: 'This is the test for the Book Controller' })
 }
 
 // Función que permite agregar un libro
-function saveBook(req, res){
+function saveBook(req, res) {
     var params = req.body
     var book = new Book()
+    var authorRes = new Author()
+    var editorialRes = new Editorial()
 
-    if(params.title && params.year && params.genre && params.pages && params.editorial && params.nameAuthor){
+    if (params.title && params.year && params.genre && params.pages && params.idEditorial && params.idAuthor) {
         book.title = params.title
         book.year = params.year
         book.genre = params.genre
         book.pages = params.pages
-        book.editorial = params.editorial
-        book.nameAuthor = params.nameAuthor
+        book.idEditorial = params.idEditorial
+        book.idAuthor = params.idAuthor
 
-        Editorial.find({ name: book.editorial.toLowerCase() }).exec((err, editorials) => {
-            if (err) return res.status(500).send({ message: 'Request Error' })
+        Editorial.findById(params.idEditorial, (err, editorial) => {
+            if (!editorial) return res.status(500).send({ message: 'Editorial is not registered' })
+          
+            if (editorial.maxBooks == -1){
+                return res.status(500).send({ message: 'Editorial has exceeded the registration limits' })
+            }else{
 
-            if( editorials && editorials.maxBooks < 0){
-                return res.status(200).send({ message: 'Its not possible to register the book, the maximum allowed was reached' })
+                Author.findById(params.idAuthor, (err, author) => {
+                    if (!author) return res.status(500).send({ message: 'Author is not registered' })
+                  
+                    Book.find({ title: book.title.toLowerCase() }).exec((err, books) => {
+                        if (err) return res.status(500).send({ message: 'Request Error' })
+            
+                        if (books && books.length > 0) {
+                            return res.status(200).send({ message: 'Book already exists' })
+                        }
+            
+                        console.log( Book.find({ title: book.title.toLowerCase()}))
+
+                        book.save((err, bookStored) => {
+                            if (err) return res.status(500).send({ message: 'Error saving the Book' })
+            
+                            if (bookStored) {
+                                res.status(200).send({ book })
+                            } else {
+                                res.status(404).send({ message: 'Book has not been registered' })
+                            }
+                        })
+                    })
+                    
+                })      
+
             }
-            console.log(editorials)
         })
+        
+        
 
-
-        Book.find({ title: book.title.toLowerCase() }).exec((err, books) => {
-            if (err) return res.status(500).send({ message: 'Request Error' })
-
-            if( books && books.length > 0){
-                return res.status(200).send({ message: 'Book already exists' })
-            }
-
-            book.save((err, bookStored) => {
-                if (err) return res.status(500).send({ message: 'Error saving the Book' })
-
-                if (bookStored){
-                    res.status(200).send({ book })
-                }else{
-                    res.status(404).send({ message: 'Book has not been registered' })
-                }
-            })
-        })
-    }else{
+    } else {
         res.status(200).send({ message: 'Missing Data' })
     }
 }
 
 // Función que permite obtener un libro registrado
-function getBook(req, res){
+function getBook(req, res) {
     var bookId = req.params.id
 
     Book.findById(bookId, (err, book) => {
@@ -69,9 +82,9 @@ function getBook(req, res){
 }
 
 // Función que obtiene todos los libros registrados, de forma paginada
-function getBooks(req, res){
+function getBooks(req, res) {
     var page = 1
-    if(req.params.page){
+    if (req.params.page) {
         page = req.params.page
     }
 
@@ -82,10 +95,10 @@ function getBooks(req, res){
 
         if (!books) return res.status(404).send({ message: 'No registered Books' })
 
-        return res.status(200).send({ 
+        return res.status(200).send({
             books,
             total,
-            pages: Math.ceil(total/itemsPerPage)
+            pages: Math.ceil(total / itemsPerPage)
         })
     })
 }
